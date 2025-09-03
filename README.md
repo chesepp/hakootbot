@@ -10,3 +10,5 @@ sys
 asyncio
 
 and also install pyqt5 for the UI. 
+
+Unfortunately, it is no longer possible to get the Quiz ID before the kahoot game ends, the quizID only being revealed after GameEnded event has triggered, which is too late. If anyone reading this is up for the task, try to incorporate some type of new way to get the quiz id or implement some type of ai to read the questions from information in the questionstart packet and get the answers from that. 
