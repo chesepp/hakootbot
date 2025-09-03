@@ -1,20 +1,21 @@
 from kahoot import KahootClient
 import asyncio
 import logging 
+import io
 import sys
+import re
 import resources_rc
-
+import time
 from kahoot.packets.impl.respond import RespondPacket
 from kahoot.packets.server.game_over import GameOverPacket
 from kahoot.packets.server.game_start import GameStartPacket
 from kahoot.packets.server.question_end import QuestionEndPacket
 from kahoot.packets.server.question_ready import QuestionReadyPacket
 from kahoot.packets.server.question_start import QuestionStartPacket
+from kahoot.util.solver import solve_challenge
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import QGraphicsOpacityEffect
-
-
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -24,7 +25,7 @@ class Ui_MainWindow(object):
         brush = QtGui.QBrush(QtGui.QColor(28, 7, 50))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.WindowText, brush)
-        brush = QtGui.QBrush(QtGui.QColor(165, 136, 240))
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Button, brush)
         brush = QtGui.QBrush(QtGui.QColor(168, 168, 168))
@@ -36,10 +37,10 @@ class Ui_MainWindow(object):
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Text, brush)
-        brush = QtGui.QBrush(QtGui.QColor(41, 6, 66))
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.ButtonText, brush)
-        brush = QtGui.QBrush(QtGui.QColor(186, 181, 255))
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Base, brush)
         brush = QtGui.QBrush(QtGui.QColor(195, 181, 240))
@@ -99,7 +100,7 @@ class Ui_MainWindow(object):
         brush = QtGui.QBrush(QtGui.QColor(168, 168, 168))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, brush)
-        brush = QtGui.QBrush(QtGui.QColor(195, 181, 240))
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Base, brush)
         brush = QtGui.QBrush(QtGui.QColor(195, 181, 240))
@@ -149,8 +150,8 @@ class Ui_MainWindow(object):
         #self.graphicsView.setPixmap(scaled_pixmap)
         self.graphicsView.setStyleSheet("""                                                                                                                 
         border-image: url(:/Hakoot.png);                                                                                                      
-        background-color: black; \                                                                                                           
-        border-radius: 50%; \                                                                                                                
+        background-color: black;                                                                                                          
+        border-radius: 50%;                                                                                                                 
         """)
         #self.graphicsView.setStyleSheet("border: 2px solid rgb(170, 160, 212);border-radius: 50px;")
         self.TitleLabel = QtWidgets.QLabel(self.frame)
@@ -163,6 +164,7 @@ class Ui_MainWindow(object):
         self.TitleLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.TitleLabel.setObjectName("TitleLabel")
         self.TitleLabel.setAttribute(Qt.WA_TranslucentBackground)
+        self.TitleLabel.setStyleSheet("color: rgb(0,0,0)")
         self.CreditLabel = QtWidgets.QLabel(self.frame)
         self.CreditLabel.setGeometry(QtCore.QRect(640, 525, 211, 31))
         font = QtGui.QFont()
@@ -170,10 +172,11 @@ class Ui_MainWindow(object):
         font.setPointSize(14)
         self.CreditLabel.setFont(font)
         self.CreditLabel.setObjectName("CreditLabel")
+        self.CreditLabel.setStyleSheet("color: rgb(0,0,0)")
         self.textBrowser = QtWidgets.QTextBrowser(self.frame)
         self.textBrowser.setGeometry(QtCore.QRect(420, 130, 381, 371))
         self.textBrowser.setObjectName("textBrowser")
-        self.textBrowser.setStyleSheet("    background-color: rgb(211, 196, 255);border: 2px solid rgb(154, 137, 190);border-radius: 20px;")
+        self.textBrowser.setStyleSheet("color: rgb(0,0,0); background-color: rgb(211, 196, 255);border: 2px solid rgb(154, 137, 190);border-radius: 20px;")
         self.opacity_effect = QGraphicsOpacityEffect() 
   
         # setting opacity level 
@@ -189,6 +192,7 @@ class Ui_MainWindow(object):
         self.gamepinlabel.setFont(font)
         self.gamepinlabel.setObjectName("gamepinlabel")
         self.gamepinlabel.setAttribute(Qt.WA_TranslucentBackground)
+        self.gamepinlabel.setStyleSheet("color: rgb(0,0,0)")
         self.gamepinchange = QtWidgets.QLabel(self.frame)
         self.gamepinchange.setGeometry(QtCore.QRect(520, 103, 201, 26))
         font = QtGui.QFont()
@@ -197,20 +201,21 @@ class Ui_MainWindow(object):
         self.gamepinchange.setFont(font)
         self.gamepinchange.setObjectName("gamepinchange")
         self.gamepinchange.setAttribute(Qt.WA_TranslucentBackground)
+        self.gamepinchange.setStyleSheet("color: rgb(0,0,0)")
         self.Gamepin_LineEdit = QtWidgets.QLineEdit(self.frame)
         self.Gamepin_LineEdit.setGeometry(QtCore.QRect(250, 300, 131, 31))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.Gamepin_LineEdit.setFont(font)
         self.Gamepin_LineEdit.setObjectName("Gamepin_LineEdit")
-        self.Gamepin_LineEdit.setStyleSheet("background-color: #f0f0f0;border: 2px solid #8f8f91;border-radius: 10px;")
+        self.Gamepin_LineEdit.setStyleSheet("color: rgb(0,0,0); background-color: #f0f0f0;border: 2px solid #8f8f91;border-radius: 10px;")
         self.Name_LineEdit = QtWidgets.QLineEdit(self.frame)
         self.Name_LineEdit.setGeometry(QtCore.QRect(250, 339, 131, 31))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.Name_LineEdit.setFont(font)
         self.Name_LineEdit.setObjectName("Name_LineEdit")
-        self.Name_LineEdit.setStyleSheet("background-color: #f0f0f0;border: 2px solid #8f8f91;border-radius: 10px;")
+        self.Name_LineEdit.setStyleSheet("color: rgb(0,0,0); background-color: #f0f0f0;border: 2px solid #8f8f91;border-radius: 10px;")
         self.label = QtWidgets.QLabel(self.frame)
         self.label.setGeometry(QtCore.QRect(130, 300, 111, 21))
         font = QtGui.QFont()
@@ -221,13 +226,13 @@ class Ui_MainWindow(object):
         self.labelOpacity = QGraphicsOpacityEffect()
         self.labelOpacity.setOpacity(0.9)
         self.label.setGraphicsEffect(self.labelOpacity)
-        self.label.setStyleSheet("border: 2px solid #8f8f91;border-radius: 10px;")
+        self.label.setStyleSheet("color: rgb(0,0,0); border: 2px solid #8f8f91;border-radius: 10px;")
         self.label_2 = QtWidgets.QLabel(self.frame)
         self.label_2.setGeometry(QtCore.QRect(130, 340, 111, 20))
         self.label_2Opacity = QGraphicsOpacityEffect()
         self.label_2Opacity.setOpacity(0.9)
         self.label_2.setGraphicsEffect(self.label_2Opacity)
-        self.label_2.setStyleSheet("border: 2px solid #8f8f91;border-radius: 10px;")
+        self.label_2.setStyleSheet("color: rgb(0,0,0); border: 2px solid #8f8f91;border-radius: 10px;")
         font = QtGui.QFont()
         font.setFamily("Comic Sans MS")
         font.setPointSize(10)
@@ -236,7 +241,7 @@ class Ui_MainWindow(object):
         self.pushButton = QtWidgets.QPushButton(self.frame)
         self.pushButton.setGeometry(QtCore.QRect(160, 390, 151, 51))
         self.pushButton.setObjectName("pushButton")
-        self.pushButton.setStyleSheet("background-color: #f0f0f0;border: 2px solid #8f8f91;border-radius: 10px;")
+        self.pushButton.setStyleSheet("color: rgb(0,0,0); background-color: #f0f0f0;border: 2px solid #8f8f91;border-radius: 10px;")
 
         MainWindow.setCentralWidget(self.centralwidget)
 
@@ -293,7 +298,16 @@ class MyWin(QtWidgets.QMainWindow, Ui_MainWindow):
         
 #async def joinHandle(username):
    # print(f"bot: {username} has joined")
+httpcore_log_buffer = io.StringIO()
+httpcore_handler = logging.StreamHandler(httpcore_log_buffer)
+httpcore_handler.setLevel(logging.DEBUG)
+
+httpcore_logger = logging.getLogger("httpcore")
+httpcore_logger.setLevel(logging.DEBUG)
+httpcore_logger.addHandler(httpcore_handler)
+httpcore_logger.propagate = False
 class AsyncWorker(QtCore.QThread):
+    game_started = False
     finished = QtCore.pyqtSignal()
     def __init__(self, Ui_MainWindow):
         super().__init__()
@@ -310,10 +324,10 @@ class AsyncWorker(QtCore.QThread):
     async def game_start(self, packet: GameStartPacket):
         print(f"Game started: {packet}")
         self.Ui_MainWindow.textBrowser.append(f"Game started: Amount of Questions: {packet.game_block_count}")
-        #self.Ui_MainWindow.textBrowser.append(f"Game started: {packet}")
+
     async def game_over(self, packet: GameOverPacket):
-            print(f"Game over: {packet}")
-            self.Ui_MainWindow.textBrowser.append(f"Game Ended: ended with rank: {packet.rank} in {packet.quiz_title}")
+        print(f"Game over: {packet}")
+        self.Ui_MainWindow.textBrowser.append(f"Game Ended: ended with rank: {packet.rank} in {packet.quiz_title}")
 
     async def question_start(self, packet: QuestionStartPacket):
         print(f"Question started: {packet}")
@@ -329,6 +343,23 @@ class AsyncWorker(QtCore.QThread):
         print(f"Question ready: {packet}")
         self.Ui_MainWindow.textBrowser.append(f"Question Number {packet.game_block_index}/{packet.total_game_block_count} ready")
         #self.Ui_MainWindow.textBrowser.append(f"Question ready: {packet}")
+    async def getSessionId(self):
+        #log_contents = httpcore_log_buffer.getvalue()
+        #print(f"Captured Log Contents: {log_contents}")
+        #self.Ui_MainWindow.textBrowser.append(f"Captured Log Contents: {log_contents}")
+        #match = re.search(r"\(b'x-kahoot-session-token', b'([^']+)'\)", log_contents)
+        #if match: 
+        #    solve_challenge(match.group(1), )
+        r = self.bot_client.http_client.get(
+                f"https://kahoot.it/reserve/session/{self.bot_client.game_pin}/?{int(time.time())}"
+            )
+        session_token = r.headers['x-kahoot-session-token']
+        #logger.debug(f"Session token: {session_token}, Solving challenge...")
+        self.Ui_MainWindow.textBrowser.append(f"Session token: {session_token}")
+        session_id = solve_challenge(session_token, r.json()["challenge"])
+        #logger.debug(f"Session ID: {session_id}")
+        self.Ui_MainWindow.textBrowser.append(f"Session id: {session_id}")
+        
     async def main(self):
         join_status = {}
         #self.Ui_MainWindow.textBrowser.append("fasfafafafsafafasfa")
@@ -359,8 +390,7 @@ class AsyncWorker(QtCore.QThread):
         join_status[username] = False  
         self.Ui_MainWindow.textBrowser.append(f"Attempting to join game with bot: {username}")
 
-
-        await self.bot_client.join_game(pin, username)
+        await asyncio.gather(self.bot_client.join_game(pin, username),self.getSessionId())
         #join_status[username] = True
 
         #print("\nFinal Join Statuses:")
